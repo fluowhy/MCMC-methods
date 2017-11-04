@@ -30,7 +30,7 @@ def chi2(mod, dat, sigma):
 def prior(theta): # log(pi)
 	ct = 1
 	r = np.diag(np.ones(len(theta))*ct)
-	p = -0.5*np.log(np.linalg.det(2*np.pi*r)) + -0.5*theta.dot((np.linalg.inv(r)).dot(theta)) 
+	p = -0.5*np.log(np.linalg.det(2*np.pi*r)) - 0.5*theta.dot((np.linalg.inv(r)).dot(theta)) 
 	return p
 
 
@@ -90,9 +90,9 @@ def revisa(theta, z):
 	arg = EHubble(theta, z)[1]
 	bol = np.sum(arg<0)
 	if bol>0:
-		a = 0
+		a = 0 # raiz imaginaria 
 	else:
-		a = 1
+		a = 1 # raiz real
 	return a
 
 
@@ -230,8 +230,8 @@ def cinetica(p, m):
 	return k
 
 
-def hamiltoniano(p, x, m=1):
-	h = cinetica(p, m) + potencial(x, m)
+def hamiltoniano(p, dat, sigma, theta, z, m=1):
+	h = cinetica(p, m) + potencial(dat, sigma, theta, z)
 	return h
 
 
@@ -248,14 +248,20 @@ def leapfrog(pi, l, e, m, dw, theta, z, dat, sigma):
 	X.append(theta)
 	P.append(pi)
 	qe = theta
-	for i in range(l):
-		if i==0 or i==(l-1):
+	pe = pi
+	while True:
+		pe = np.random.normal(size=3)
+		for i in range(l):		
 			pe = pi - 0.5*e*gradiente(dw, qe, z, dat, sigma) # actualiza momento en e/2	
-		elif i!=(l-1):
-			pe = pe - e*gradiente(dw, qe, z, dat, sigma)
-		qe = qe + e*pe/m
-		P.append(pe)
-		X.append(qe)
+			qe = qe + e*pe/m
+			rev = revisa(qe, z)*revisa(qe+0.5*dw, z)*revisa(qe-0.5*dw, z)
+			if revisa(qe, z)==0 and revisa(qe+0.5*dw, z)==0 and revisa(qe-0.5*dw, z)==0:
+				break
+			pe = pe - 0.5*e*gradiente(dw, qe, z, dat, sigma)
+			P.append(pe)
+			X.append(qe)
+			if i+1==l: i+=1
+		if i==l: break
 	P = np.array(P)
 	X = np.array(X)
 	return X, P
@@ -292,23 +298,21 @@ Xi2 = []
 Post = []
 params = 3 # numero de parametros
 r = 1e-4
-m = np.ones(3)*r # varianza de la energia cinetica, vector de "masas"
+m = np.ones(3) # varianza de la energia cinetica, vector de "masas"
 
 print 'parametros', params
 print '___________________________________'
 """____________________________________________________"""
 for o in range(M):
 	print 'cadena ', o+1
-	###############################
-	# Matrices de cosas de la cadena
-	###############################
-	chain = [] # cadena
-	post = [] # distribucion posterior
+	# Matrices de datos de la cadena	
+	chain = [] 
+	post = [] 
 	chi_2 = []
 	Ratio = []
 	acept = 0
 	# Q inicial
-	q = np.random.uniform(low=[0,0,-5], high=[2, 2, 0], size=3)
+	q = np.random.uniform(low=[0,0,-4], high=[2, 2, 0], size=3)	
 	mod1 = modelo(q, redshift)
 	pos1 = potencial(mu_obs, cov, q, redshift)
 	Chi1 = chi2(mod1, mu_obs, cov)[0]
@@ -318,25 +322,35 @@ for o in range(M):
 	chi_2.append(Chi1)
 	Ratio.append(100)	
 	
-	N = 1000 # numero de muestras
+	N = 10000 # numero de muestras
 
-	for i in range(N):		
+	for i in range(N):
+		print i		
 		q = chain[i]
+		
 		# revision si proposal no indefine la busqueda
 		while True:
-			p = np.random.normal(loc=np.zeros(3), scale=m, size=3)
-			Q, P = leapfrog(p, 10, 1e-3, m, 1e-5, q, redshift, mu_obs, cov)
-			Q = Q[-1]
-			P = P[-1]		
-			if revisa(Q, redshift)==1: # que la raiz no sea imaginaria
+			p = np.random.normal(loc=np.zeros(3), scale=m, size=3)	
+			Q, P = leapfrog(p, 25, 1e-3, m, 1e-4, q, redshift, mu_obs, cov)
+			#H = []			
+			#for ip, iq in zip(Q,P):
+			#	H.append(hamiltoniano(ip, mu_obs, cov, iq, redshift, m=1))
+			#plt.plot(Q[:,0], Q[:,1])
+			#plt.scatter(q[0], q[1], color='red')
+			#plt.xlim([0, 2])
+			#plt.ylim([0, 2])			
+			#plt.show()		
+			Q1 = Q[-1]
+			P1 = P[-1]		
+			if revisa(Q1, redshift)==1: # que la raiz no sea imaginaria
 				break	
 		
 		t = cinetica(p, m)
 		u = potencial(mu_obs, cov, q, redshift)
-		T = cinetica(P, m)
-		U = potencial(mu_obs, cov, Q, redshift)
+		T = cinetica(P1, m)
+		U = potencial(mu_obs, cov, Q1, redshift)
 		
-		A = acepta(t, u, T, U, q, Q)
+		A = acepta(t, u, T, U, q, Q1)
 		chain.append(A[0])
 		post.append(A[1])
 		mod1 = modelo(A[0], redshift)
@@ -345,7 +359,7 @@ for o in range(M):
 		# ratio de aceptacion
 		acept += tasa(chain[i], chain[i + 1]) 
 		Ratio.append(acept/(i+1)*100)
-			
+	
 	ratio = acept/N*100
 	print 'ratio %', ratio
 
@@ -357,6 +371,8 @@ for o in range(M):
 	t1 = chain[:,0]
 	t2 = chain[:,1]
 	t3 = chain[:,2]
+	
+
 
 	#t1 = t1[70:] # saca burn in
 	#t2 = t2[70:]

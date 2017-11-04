@@ -9,11 +9,7 @@ from scipy.special import gammainccinv
 from scipy.special import erfc
 from mpl_toolkits.mplot3d import Axes3D
 
-
-"""
-Metropolis-Hastings MCMC
-"""
-
+# Este programa implementa MCMC con Metropolis Hastings.
 
 def likelihood(mod, dat, sigma): # retorna escalar, log(L)
 	sig = np.diagonal(sigma)
@@ -218,13 +214,7 @@ def cuenta(x2, W):
 	
 plt.clf()
 
-"""
-redshift = np.genfromtxt('sn1a', usecols=(0)) 
-mu_obs = np.genfromtxt('sn1a', usecols=(1)) - M # m - M
-cov = np.diag(np.ones(len(redshift))*0.4)
-"""
-
-#names = np.genfromtxt('gal.txt', dtype=str,usecols=(0))
+# Carga de datos
 redshift = np.genfromtxt('gal.txt', usecols=(1))
 mu_obs = np.genfromtxt('gal.txt', usecols=(2)) # m - M
 cov = np.genfromtxt('gal.txt', usecols=(3))
@@ -236,79 +226,68 @@ cov = cov[p]
 cov = np.diag(cov)
 
 # configuracion cadena
-"""___________________________________________________"""
-M = 2 # numero de cadenas
+
+# numero de cadenas
+M = 10
+# matriz que guarda cadenas, chi2, dist. post. y covarianza.
 Chains = []
 Xi2 = []
 Post = []
-pcov = 1 # si cov es actualizada o no
-params = 3 # numero de parametros
-
+COV = []
+# estado de covarianza, ajustable o no
+pcov = 1
+# numero de parametros
+params = 3
 # 0.6 para tres parametros, 1.2 para dos 
 if params==2:
 	r = 1.2e-2 
 elif params==3:
 	r = 0.6e-2
 t = 0.1
-cov_prop = np.diag(np.ones(params)*r) # matriz de covarianza
-COV = []
+# covarianza inicial
+cov_prop = np.diag(np.ones(params)*r)
 COV.append(cov_prop)
 if pcov==1:
 	print 'covarianza ajustable'
 else:
 	print 'varianza proposal', r
 print 'parametros', params
-print '___________________________________'
-"""____________________________________________________"""
+
 for o in range(M):
 	print 'cadena ', o+1
-	print cov_prop
-	
-
-	chain = [] # cadena
-	post = [] # distribucion posterior
-	mod = [] # modelo
+	# guarda cadena, dist. post., modelo, chi2 y ratio de la cadena actual
+	chain = [] 
+	post = [] 
+	mod = []
 	chi_2 = []
 	Ratio = []
 	acept = 0
-	cov_prop = np.diag(np.ones(params)*r)
+	# params iniciales	
 	T = np.random.uniform(low=[0,0,-5], high=[2, 2, 0], size=3)
+	covarianza = COV[o]	
+	print 'covarianza', covarianza
 	mu_mod = modelo(T, redshift)
 	pos = likelihood(mu_mod,mu_obs,cov)# + prior(T) 
-	print T
+	# guarda datos iniciales de la cadena 
 	chain.append(T)
 	post.append(pos)
 	mod.append(mu_mod)
 	chi_2.append(chi2(mu_mod, mu_obs, cov)[0])
 	Ratio.append(100)	
-	
-	N = 10000 # numero de muestras
-
-	for i in range(N):
-		
-		if pcov==1:
-			
-
-			if o==0 and i>100:
-				cov_prop1 = np.cov(np.array(chain).T)
-				if np.linalg.det(cov_prop)>=0:
-					cov_prop = cov_prop1
-			
-
-			elif o>0 and i>200:
-				cov_prop1 = np.cov(np.array(chain).T)
-				if np.linalg.det(cov_prop)>=0:
-					cov_prop = cov_prop1
-		
+	# numero de muestras
+	N = 10000
+	#cadena
+	for i in range(N):	
 		T1 = chain[i]
 		e = (Ratio[i] - 25)*1e-2
-		cov_prop = cov_prop*(1+0.5*e)
+		# itera hasta que encuentra un porposal valido
 		while True:
-			T2 = np.random.multivariate_normal(T1, cov_prop)
+			T2 = np.random.multivariate_normal(T1, covarianza)
 			#T2[1] = 1 - T2[0]
 			if params==2:
-				T2[2] = -1		
-			if revisa(T2,redshift)==1: # que la raiz no sea imaginaria
+				T2[2] = -1
+			# que la raiz no sea imaginaria		
+			if revisa(T2,redshift)==1: 
 				break
 		
 		mod1 = mod[i]
@@ -325,8 +304,7 @@ for o in range(M):
 		# ratio de aceptacion
 		acept += tasa(chain[i], chain[i + 1]) 
 		Ratio.append(acept/(i+1)*100)
-		COV.append(cov_prop)
-		
+				
 	ratio = acept/N*100
 	print 'ratio %', ratio
 
@@ -383,7 +361,6 @@ for o in range(M):
 	plt.show()
 	"""
 
-
 	# regiones metodo 2
 
 	D = np.array((t1, t2, t3))
@@ -404,7 +381,10 @@ for o in range(M):
 
 	dom = np.linspace(t1min, t1max, 100)
 	rec = 1 - dom
-
+	
+	# grafica muestras
+	plt.scatter(t1, t2, marker='.', color='black')
+	plt.scatter(t1[0], t2[0], color='black')
 	plt.plot(dom, rec, color='black')
 	plt.scatter(t1_99, t2_99, marker='.', color='navy', label='99%')
 	plt.scatter(t1_95, t2_95, marker='.', color='green', label='95%')
@@ -416,7 +396,8 @@ for o in range(M):
 	plt.legend()
 	plt.show()
 
-
+	plt.scatter(t1, t3, marker='.', color='black')
+	plt.scatter(t1[0], t3[0], color='black')
 	plt.scatter(t1_99, t3_99, marker='.', color='navy', label='99%')
 	plt.scatter(t1_95, t3_95, marker='.', color='green', label='95%')
 	plt.scatter(t1_68, t3_68, marker='.', color='red', label='68%')
@@ -427,7 +408,8 @@ for o in range(M):
 	plt.legend()
 	plt.show()
 
-
+	plt.scatter(t2, t3, marker='.', color='black')
+	plt.scatter(t2[0], t3[0], color='black')
 	plt.scatter(t2_99, t3_99, marker='.', color='navy', label='99%')
 	plt.scatter(t2_95, t3_95, marker='.', color='green', label='95%')
 	plt.scatter(t2_68, t3_68, marker='.', color='red', label='68%')
@@ -443,11 +425,12 @@ for o in range(M):
 		np.savetxt('cadena_'+str(o+1)+'_'+str(params)+'p_cov', Super)
 	else:
 		np.savetxt('cadena_'+str(o+1)+'_'+str(params)+'p', Super)
-	
+	# actualiza covarianza
+	covarianza = np.cov(chain.T)
+	COV.append(covarianza)
 	Chains.append(chain)
 	Post.append(post)
-	Xi2.append(chi_2)
-	
+	Xi2.append(chi_2)	
 	
 Chains = np.array(Chains)
 Post = np.array(Post)
