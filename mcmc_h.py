@@ -322,7 +322,7 @@ for o in range(M):
 	chi_2.append(Chi1)
 	Ratio.append(100)	
 	
-	N = 10000 # numero de muestras
+	N = 1000 # numero de muestras
 
 	for i in range(N):
 		print i		
@@ -330,7 +330,10 @@ for o in range(M):
 		
 		# revision si proposal no indefine la busqueda
 		while True:
-			p = np.random.normal(loc=np.zeros(3), scale=m, size=3)	
+			if i>100:
+				p = np.random.normal(loc=np.zeros(3), scale=np.diag(np.cov(np.array(chain).T)), size=3)	
+			else: 
+				p = np.random.normal(loc=np.zeros(3), scale=m, size=3)	
 			Q, P = leapfrog(p, 25, 1e-3, m, 1e-4, q, redshift, mu_obs, cov)
 			#H = []			
 			#for ip, iq in zip(Q,P):

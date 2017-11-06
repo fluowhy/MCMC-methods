@@ -228,7 +228,7 @@ cov = np.diag(cov)
 # configuracion cadena
 
 # numero de cadenas
-M = 10
+M = 2
 # matriz que guarda cadenas, chi2, dist. post. y covarianza.
 Chains = []
 Xi2 = []
@@ -393,6 +393,8 @@ for o in range(M):
 	plt.xlabel('$\Omega_{m}$')
 	plt.ylabel('$\Omega_{\Lambda}$')
 	plt.scatter(t1m, t2m, marker='x', s=20, color='black', label=('$\Omega_{m,0}$='+str(t1m)+' '+'$\Omega_{\Lambda}$='+str(t2m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3 ))))
+	plt.xlim([-0.1, 1.2])
+	plt.ylim([-0.25, 1.75])	
 	plt.legend()
 	plt.show()
 
@@ -405,6 +407,8 @@ for o in range(M):
 	plt.xlabel('$\Omega_{m}$')
 	plt.ylabel('w')
 	plt.scatter(t1m, t3m, marker='x', s=20, color='black', label=('$\Omega_{m,0}$='+str(t1m)+' '+'$w=$'+str(t3m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3))))
+	plt.xlim([-0.1, 0.5])
+	plt.ylim([-2.5, -0.5])
 	plt.legend()
 	plt.show()
 
@@ -417,6 +421,8 @@ for o in range(M):
 	plt.xlabel('$\Omega_{\Lambda}$')
 	plt.ylabel('w')
 	plt.scatter(t2m, t3m, marker='x', s=20, color='black', label=('$\Omega_{\Lambda}$='+str(t2m)+' '+'$w=$'+str(t3m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3))))
+	plt.xlim([0.2, 1.8])
+	plt.ylim([-2.75, -0.5])
 	plt.legend()
 	plt.show()
 		
