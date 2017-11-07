@@ -8,6 +8,7 @@ from matplotlib.ticker import NullFormatter
 from scipy.special import gammainccinv
 from scipy.special import erfc
 from mpl_toolkits.mplot3d import Axes3D
+import time
 
 # Este programa implementa MCMC con Metropolis Hastings.
 
@@ -228,7 +229,7 @@ cov = np.diag(cov)
 # configuracion cadena
 
 # numero de cadenas
-M = 2
+M = 10
 # matriz que guarda cadenas, chi2, dist. post. y covarianza.
 Chains = []
 Xi2 = []
@@ -245,27 +246,29 @@ elif params==3:
 	r = 0.6e-2
 t = 0.1
 # covarianza inicial
-cov_prop = np.diag(np.ones(params)*r)
-COV.append(cov_prop)
+covarianza = np.diag(np.ones(params)*r)
 if pcov==1:
 	print 'covarianza ajustable'
 else:
-	print 'varianza proposal', r
+	print 'covarianza estatica', r
 print 'parametros', params
 
 for o in range(M):
-	print 'cadena ', o+1
-	# guarda cadena, dist. post., modelo, chi2 y ratio de la cadena actual
+	print 'cadena ', o
+	# matrices de cadena, dist. post., modelo, chi2 y ratio de la cadena actual
 	chain = [] 
 	post = [] 
 	mod = []
 	chi_2 = []
 	Ratio = []
 	acept = 0
-	# params iniciales	
-	T = np.random.uniform(low=[0,0,-5], high=[2, 2, 0], size=3)
-	covarianza = COV[o]	
+	# params iniciales, revisa que sean validos
+	while True:	
+		T = np.random.uniform(low=[0,0,-5], high=[2, 2, 0], size=3)
+		if revisa(T,redshift)==1: 
+			break
 	print 'covarianza', covarianza
+	print 'params iniciales', T
 	mu_mod = modelo(T, redshift)
 	pos = likelihood(mu_mod,mu_obs,cov)# + prior(T) 
 	# guarda datos iniciales de la cadena 
@@ -277,9 +280,10 @@ for o in range(M):
 	# numero de muestras
 	N = 10000
 	#cadena
+	Ti = time.time()
 	for i in range(N):	
+		# selecciona ultimo elemento de la cadena
 		T1 = chain[i]
-		e = (Ratio[i] - 25)*1e-2
 		# itera hasta que encuentra un porposal valido
 		while True:
 			T2 = np.random.multivariate_normal(T1, covarianza)
@@ -289,14 +293,17 @@ for o in range(M):
 			# que la raiz no sea imaginaria		
 			if revisa(T2,redshift)==1: 
 				break
-		
+		# selecciona ultimo modelo
 		mod1 = mod[i]
+		# calcula modelo con proposal
 		mod2 = modelo(T2, redshift)
+		# selecciona ultima dis. post.
 		pos1 = post[i]
+		# calcula nueva dist. post.
 		pos2 = likelihood(mod2,mu_obs,cov)# + prior(T2)
-		#print pos2
+		# decision de aceptacion
 		A = acepta(T1, pos1, T2, pos2, mod1, mod2)
-		#print T1, T2, A[0]
+		# guarda la variable aceptada (puede ser la anterior o proposal)
 		chain.append(A[0])
 		post.append(A[1])
 		mod.append(A[2])
@@ -304,43 +311,44 @@ for o in range(M):
 		# ratio de aceptacion
 		acept += tasa(chain[i], chain[i + 1]) 
 		Ratio.append(acept/(i+1)*100)
+
+	Tf = time.time()
+	print 'Tiempo cadena', np.around(Tf - Ti, 0), 's'
 				
 	ratio = acept/N*100
-	print 'ratio %', ratio
+	print 'ratio %', np.rint(ratio)
 
+	# convierte listas a array
 	post = np.array(post)
 	chain = np.array(chain)
 	mod = np.array(mod)
 	chi_2 = np.array(chi_2)
 	Ratio = np.array(Ratio)
-
+	
+	# guarda cadenas de cada parametro
 	t1 = chain[:,0]
 	t2 = chain[:,1]
 	t3 = chain[:,2]
 
-	#t1 = t1[70:] # saca burn in
+	# saca burn in
+	#t1 = t1[70:] 
 	#t2 = t2[70:]
 	#t3 = t3[70:]
 
-	# buscar argumento del minimo de chi2
-
+	# busca argumento del minimo de chi2
 	t1m, t2m, t3m = np.around(argmin2(t1, t2, t3, chi_2),3)
-	print t1m, t2m, t3m
+	print 'Xi2 minimo', t1m, t2m, t3m
 
-
-
-	#plt.scatter(t1, t2, marker='x', color='black')
-	#plt.show()
-	#plt.hist(t1, 100)
-	#plt.show()
-	#plt.hist(t2, 100)
-	#plt.show()
-
+	# plot tasa de aceptacion
+	plt.clf()
 	plt.plot(Ratio)
-	plt.show()
+	plt.xlabel('paso')
+	plt.ylabel('aceptacion $\%$')
+	plt.title('Tasa de aceptacion')
+	plt.savefig('chain_'+str(o)+'_tasa')
+	
 	"""
 	# regiones de confianza
-
 
 	r1 = dx2(1,2)
 	r2 = dx2(2,2)
@@ -360,8 +368,10 @@ for o in range(M):
 	plt.legend()
 	plt.show()
 	"""
+	
+	# Regiones de confianza y plots de muestras
 
-	# regiones metodo 2
+	# regiones metodo 2 (segun orden de Xi2)
 
 	D = np.array((t1, t2, t3))
 	vals = cuenta(chi_2, D)
@@ -383,60 +393,68 @@ for o in range(M):
 	rec = 1 - dom
 	
 	# grafica muestras
+	plt.clf()
 	plt.scatter(t1, t2, marker='.', color='black')
-	plt.scatter(t1[0], t2[0], color='black')
+	plt.scatter(t1[0], t2[0], color='purple', label='inicio')
 	plt.plot(dom, rec, color='black')
 	plt.scatter(t1_99, t2_99, marker='.', color='navy', label='99%')
 	plt.scatter(t1_95, t2_95, marker='.', color='green', label='95%')
 	plt.scatter(t1_68, t2_68, marker='.', color='red', label='68%')
-	plt.title('metodo de conteo')
+	plt.title('Muestras cadena '+str(o))
 	plt.xlabel('$\Omega_{m}$')
 	plt.ylabel('$\Omega_{\Lambda}$')
 	plt.scatter(t1m, t2m, marker='x', s=20, color='black', label=('$\Omega_{m,0}$='+str(t1m)+' '+'$\Omega_{\Lambda}$='+str(t2m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3 ))))
-	plt.xlim([-0.1, 1.2])
-	plt.ylim([-0.25, 1.75])	
+	#plt.xlim([-0.1, 1.2])
+	#plt.ylim([-0.25, 1.75])	
 	plt.legend()
-	plt.show()
-
+	plt.savefig('chain_'+str(o)+'_plot_1')
+	
+	plt.clf()
 	plt.scatter(t1, t3, marker='.', color='black')
-	plt.scatter(t1[0], t3[0], color='black')
+	plt.scatter(t1[0], t3[0], color='purple', label='inicio')
 	plt.scatter(t1_99, t3_99, marker='.', color='navy', label='99%')
 	plt.scatter(t1_95, t3_95, marker='.', color='green', label='95%')
 	plt.scatter(t1_68, t3_68, marker='.', color='red', label='68%')
-	plt.title('metodo de conteo')
+	plt.title('Muestras cadena '+str(o))
 	plt.xlabel('$\Omega_{m}$')
 	plt.ylabel('w')
 	plt.scatter(t1m, t3m, marker='x', s=20, color='black', label=('$\Omega_{m,0}$='+str(t1m)+' '+'$w=$'+str(t3m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3))))
-	plt.xlim([-0.1, 0.5])
-	plt.ylim([-2.5, -0.5])
+	#plt.xlim([-0.1, 0.5])
+	#plt.ylim([-2.5, -0.5])
 	plt.legend()
-	plt.show()
-
+	plt.savefig('chain_'+str(o)+'_plot_2')
+	
+	plt.clf()
 	plt.scatter(t2, t3, marker='.', color='black')
-	plt.scatter(t2[0], t3[0], color='black')
+	plt.scatter(t2[0], t3[0], color='purple', label='inicio')
 	plt.scatter(t2_99, t3_99, marker='.', color='navy', label='99%')
 	plt.scatter(t2_95, t3_95, marker='.', color='green', label='95%')
 	plt.scatter(t2_68, t3_68, marker='.', color='red', label='68%')
-	plt.title('metodo de conteo')
+	plt.title('Muestras cadena '+str(o))
 	plt.xlabel('$\Omega_{\Lambda}$')
 	plt.ylabel('w')
 	plt.scatter(t2m, t3m, marker='x', s=20, color='black', label=('$\Omega_{\Lambda}$='+str(t2m)+' '+'$w=$'+str(t3m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3))))
-	plt.xlim([0.2, 1.8])
-	plt.ylim([-2.75, -0.5])
+	#plt.xlim([0.2, 1.8])
+	#plt.ylim([-2.75, -0.5])
 	plt.legend()
-	plt.show()
+	plt.savefig('chain_'+str(o)+'_plot_3')
 		
-	Super = np.c_[chain[:,0],chain[:,1],chain[:,2],chi_2,post,Ratio]	
-	if pcov==1:
-		np.savetxt('cadena_'+str(o+1)+'_'+str(params)+'p_cov', Super)
-	else:
-		np.savetxt('cadena_'+str(o+1)+'_'+str(params)+'p', Super)
+	# guarda xi2, post, cadena y covarianza en txt
+	np.savetxt('chain_'+str(o)+'_xi2', chi_2)
+	np.savetxt('chain_'+str(o)+'_post', post)
+	np.savetxt('chain_'+str(o)+'_chain', chain)
+	np.savetxt('chain_'+str(o)+'_cov', covarianza)	
+
+	# modificacion de varianza
+	r = 1e-1
+
 	# actualiza covarianza
-	covarianza = np.cov(chain.T)
 	COV.append(covarianza)
+	covarianza = np.cov(chain.T)*r	
 	Chains.append(chain)
 	Post.append(post)
-	Xi2.append(chi_2)	
+	Xi2.append(chi_2)
+	
 	
 Chains = np.array(Chains)
 Post = np.array(Post)
