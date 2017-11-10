@@ -246,12 +246,17 @@ elif params==3:
 	r = 0.6e-2
 t = 0.1
 # covarianza inicial
-covarianza = np.diag(np.ones(params)*r)
+covarianza = np.diag(np.array([0.4, 1.25, 4]))*r
 if pcov==1:
 	print 'covarianza ajustable'
 else:
 	print 'covarianza estatica', r
 print 'parametros', params
+
+while True:	
+	T = np.random.uniform(low=[0,0,-5], high=[2, 2, 0], size=3)
+	if revisa(T,redshift)==1: 
+		break
 
 for o in range(M):
 	print 'cadena ', o
@@ -262,11 +267,7 @@ for o in range(M):
 	chi_2 = []
 	Ratio = []
 	acept = 0
-	# params iniciales, revisa que sean validos
-	while True:	
-		T = np.random.uniform(low=[0,0,-5], high=[2, 2, 0], size=3)
-		if revisa(T,redshift)==1: 
-			break
+	# params iniciales, revisa que sean validos	
 	print 'covarianza', covarianza
 	print 'params iniciales', T
 	mu_mod = modelo(T, redshift)
@@ -286,7 +287,7 @@ for o in range(M):
 		T1 = chain[i]
 		# itera hasta que encuentra un porposal valido
 		while True:
-			T2 = np.random.multivariate_normal(T1, covarianza)
+			T2 = np.random.multivariate_normal(T1, np.sqrt(np.diag(np.diag(covarianza))))
 			#T2[1] = 1 - T2[0]
 			if params==2:
 				T2[2] = -1
@@ -330,11 +331,10 @@ for o in range(M):
 	t2 = chain[:,1]
 	t3 = chain[:,2]
 
-	# saca burn in
-	#t1 = t1[70:] 
-	#t2 = t2[70:]
-	#t3 = t3[70:]
-
+	# determina burn in
+	bur = np.nonzero(chi_2<=580)[0][0]
+	print 'burn in', bur	
+	
 	# busca argumento del minimo de chi2
 	t1m, t2m, t3m = np.around(argmin2(t1, t2, t3, chi_2),3)
 	print 'Xi2 minimo', t1m, t2m, t3m
@@ -373,8 +373,8 @@ for o in range(M):
 
 	# regiones metodo 2 (segun orden de Xi2)
 
-	D = np.array((t1, t2, t3))
-	vals = cuenta(chi_2, D)
+	D = np.array((t1[bur:], t2[bur:], t3[bur:]))
+	vals = cuenta(chi_2[bur:], D)
 	t1_68 = vals[0][0]
 	t1_95 = vals[0][1]
 	t1_99 = vals[0][2]
@@ -394,7 +394,7 @@ for o in range(M):
 	
 	# grafica muestras
 	plt.clf()
-	plt.scatter(t1, t2, marker='.', color='black')
+	plt.scatter(t1[bur:], t2[bur:], marker='.', color='black')
 	plt.scatter(t1[0], t2[0], color='purple', label='inicio')
 	plt.plot(dom, rec, color='black')
 	plt.scatter(t1_99, t2_99, marker='.', color='navy', label='99%')
@@ -410,7 +410,7 @@ for o in range(M):
 	plt.savefig('chain_'+str(o)+'_plot_1')
 	
 	plt.clf()
-	plt.scatter(t1, t3, marker='.', color='black')
+	plt.scatter(t1[bur:], t3[bur:], marker='.', color='black')
 	plt.scatter(t1[0], t3[0], color='purple', label='inicio')
 	plt.scatter(t1_99, t3_99, marker='.', color='navy', label='99%')
 	plt.scatter(t1_95, t3_95, marker='.', color='green', label='95%')
@@ -425,7 +425,7 @@ for o in range(M):
 	plt.savefig('chain_'+str(o)+'_plot_2')
 	
 	plt.clf()
-	plt.scatter(t2, t3, marker='.', color='black')
+	plt.scatter(t2[bur:], t3[bur:], marker='.', color='black')
 	plt.scatter(t2[0], t3[0], color='purple', label='inicio')
 	plt.scatter(t2_99, t3_99, marker='.', color='navy', label='99%')
 	plt.scatter(t2_95, t3_95, marker='.', color='green', label='95%')
@@ -440,25 +440,50 @@ for o in range(M):
 	plt.savefig('chain_'+str(o)+'_plot_3')
 		
 	# guarda xi2, post, cadena y covarianza en txt
-	np.savetxt('chain_'+str(o)+'_xi2', chi_2)
-	np.savetxt('chain_'+str(o)+'_post', post)
-	np.savetxt('chain_'+str(o)+'_chain', chain)
-	np.savetxt('chain_'+str(o)+'_cov', covarianza)	
+	#np.savetxt('chain_'+str(o)+'_xi2', chi_2)
+	#np.savetxt('chain_'+str(o)+'_post', post)
+	#np.savetxt('chain_'+str(o)+'_chain', chain)
+	#np.savetxt('chain_'+str(o)+'_cov', covarianza)	
 
 	# modificacion de varianza
 	r = 1e-1
 
-	# actualiza covarianza
+	# actualiza covarianza sin burn in
 	COV.append(covarianza)
-	covarianza = np.cov(chain.T)*r	
+	covarianza = np.cov(chain[bur:,:].T)#*r	
 	Chains.append(chain)
 	Post.append(post)
 	Xi2.append(chi_2)
+
+	
 	
 	
 Chains = np.array(Chains)
 Post = np.array(Post)
 Xi2 =  np.array(Xi2)
+
+# plot posterior de las cadenas
+plt.clf()
+for i in range(10):
+	lab = 'cadena '+str(i)
+	plt.plot(Xi2[i,:], label=lab)
+	plt.scatter(bur, Xi2[i,bur], marker='.', color='black')
+plt.axhline(580, linestyle='--', color='black')
+plt.title('Evolucion $\chi^{2}$')
+plt.xlabel('muestra')
+plt.ylabel('$\chi^{2}$')
+plt.xlim([0, 500])
+plt.ylim([550, 600])
+plt.legend()
+plt.savefig('/home/mauricio/Desktop/chain/evolucion')
+
+# plot muestras de cada parametro
+
+for i in range(10):
+   	plt.clf()
+	plt.plot(Chains[i,:,:])
+	plt.title('cadena '+str(i))
+    	plt.savefig('/home/mauricio/Desktop/chain/chain_'+str(i))
 
 # covarianza entre parametros de distintas cadenas
 """
