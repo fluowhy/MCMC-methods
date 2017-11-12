@@ -412,7 +412,7 @@ for o in range(M):
 	plt.xlim([0, 1])
 	plt.ylim([0, 2])	
 	plt.legend()
-	plt.savefig('/home/mauricio/Desktop/chain/chain_'+str(o)+'_plot_1')
+	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_plot_1')
 	
 	plt.clf()
 	plt.scatter(t1[bur:], t3[bur:], marker='.', color='black')
@@ -428,7 +428,7 @@ for o in range(M):
 	plt.xlim([0, 1])
 	plt.ylim([-5, 0])
 	plt.legend()
-	plt.savefig('/home/mauricio/Desktop/chain/chain_'+str(o)+'_plot_2')
+	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_plot_2')
 	
 	plt.clf()
 	plt.scatter(t2[bur:], t3[bur:], marker='.', color='black')
@@ -444,14 +444,14 @@ for o in range(M):
 	plt.xlim([0, 2])
 	plt.ylim([-5, 0])
 	plt.legend()
-	plt.savefig('/home/mauricio/Desktop/chain/chain_'+str(o)+'_plot_3')
+	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_plot_3')
 		
 	
 	# guarda xi2, post, cadena y covarianza en txt
-	#np.savetxt('chain_'+str(o)+'_xi2', chi_2)
-	#np.savetxt('chain_'+str(o)+'_post', post)
-	#np.savetxt('chain_'+str(o)+'_chain', chain)
-	#np.savetxt('chain_'+str(o)+'_cov', covarianza)	
+	#np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_xi2', chi_2)
+	#np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_post', post)
+	#np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_chain', chain)
+	#np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_cov', covarianza)	
 
 	# modificacion de varianza
 	r = 1.3e-1
