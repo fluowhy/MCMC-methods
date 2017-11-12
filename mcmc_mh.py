@@ -229,12 +229,13 @@ cov = np.diag(cov)
 # configuracion cadena
 
 # numero de cadenas
-M = 10
-# matriz que guarda cadenas, chi2, dist. post. y covarianza.
+M = 20
+# matriz que guarda cadenas, chi2, dist. post., covarianza y tasa.
 Chains = []
 Xi2 = []
 Post = []
 COV = []
+Tasa = []
 # estado de covarianza, ajustable o no
 pcov = 1
 # numero de parametros
@@ -246,7 +247,8 @@ elif params==3:
 	r = 0.6e-2
 t = 0.1
 # covarianza inicial
-covarianza = np.diag(np.array([0.4, 1.25, 4]))*r
+cov_ini = np.diag(np.array([0.4, 1.125, 4])**2)*0.5e-2
+covarianza = cov_ini
 if pcov==1:
 	print 'covarianza ajustable'
 else:
@@ -254,13 +256,14 @@ else:
 print 'parametros', params
 
 while True:	
-	T = np.random.uniform(low=[0,0,-5], high=[2, 2, 0], size=3)
+	T = np.random.uniform(low=[0,0,-5], high=[1, 2, 0], size=3)
 	if revisa(T,redshift)==1: 
 		break
-
+# inicia cadenas
 for o in range(M):
+	d = 0
 	print 'cadena ', o
-	# matrices de cadena, dist. post., modelo, chi2 y ratio de la cadena actual
+	# matrices utilizadas en cadena, dist. post., modelo, chi2 y ratio de la cadena actual
 	chain = [] 
 	post = [] 
 	mod = []
@@ -268,6 +271,12 @@ for o in range(M):
 	Ratio = []
 	acept = 0
 	# params iniciales, revisa que sean validos	
+	#covarianza = np.diag(np.array([0.4, 1.125, 4])**2)*0.5e-2
+	if o!=0:	
+		while True:	
+			T = np.random.multivariate_normal(mean=np.mean(Chains[o - 1][bur:,:], axis=0), cov=covarianza)
+			if revisa(T,redshift)==1: 
+				break
 	print 'covarianza', covarianza
 	print 'params iniciales', T
 	mu_mod = modelo(T, redshift)
@@ -280,14 +289,22 @@ for o in range(M):
 	Ratio.append(100)	
 	# numero de muestras
 	N = 10000
-	#cadena
+	# pasos de cadena
 	Ti = time.time()
-	for i in range(N):	
+	for i in range(N):
+		# revisa si se paso umbral de burn in		
+		"""		
+		if chi_2[i]<=580 and d==0 and o!=0:
+			covarianza = COV[o]
+			d = 1
+			print 'actualizada'
+			print covarianza
+		"""		
 		# selecciona ultimo elemento de la cadena
 		T1 = chain[i]
-		# itera hasta que encuentra un porposal valido
+		# itera hasta que encuentra un proposal valido
 		while True:
-			T2 = np.random.multivariate_normal(T1, np.sqrt(np.diag(np.diag(covarianza))))
+			T2 = np.random.multivariate_normal(mean=T1, cov=covarianza)
 			#T2[1] = 1 - T2[0]
 			if params==2:
 				T2[2] = -1
@@ -314,8 +331,7 @@ for o in range(M):
 		Ratio.append(acept/(i+1)*100)
 
 	Tf = time.time()
-	print 'Tiempo cadena', np.around(Tf - Ti, 0), 's'
-				
+	print 'Tiempo cadena', np.around(Tf - Ti, 0), 's'				
 	ratio = acept/N*100
 	print 'ratio %', np.rint(ratio)
 
@@ -336,16 +352,8 @@ for o in range(M):
 	print 'burn in', bur	
 	
 	# busca argumento del minimo de chi2
-	t1m, t2m, t3m = np.around(argmin2(t1, t2, t3, chi_2),3)
+	t1m, t2m, t3m = np.around(argmin2(t1, t2, t3, chi_2), 3)
 	print 'Xi2 minimo', t1m, t2m, t3m
-
-	# plot tasa de aceptacion
-	plt.clf()
-	plt.plot(Ratio)
-	plt.xlabel('paso')
-	plt.ylabel('aceptacion $\%$')
-	plt.title('Tasa de aceptacion')
-	plt.savefig('chain_'+str(o)+'_tasa')
 	
 	"""
 	# regiones de confianza
@@ -373,8 +381,7 @@ for o in range(M):
 
 	# regiones metodo 2 (segun orden de Xi2)
 
-	D = np.array((t1[bur:], t2[bur:], t3[bur:]))
-	vals = cuenta(chi_2[bur:], D)
+	vals = cuenta(chi_2[bur:], chain[bur:,:].T)
 	t1_68 = vals[0][0]
 	t1_95 = vals[0][1]
 	t1_99 = vals[0][2]
@@ -386,15 +393,13 @@ for o in range(M):
 	t3_99 = vals[0][8]
 
 	# grafica de la linea universo plano
-	t1min = min(t1)
-	t1max = max(t1)
-
-	dom = np.linspace(t1min, t1max, 100)
+	dom = np.linspace(0, 1, 100)
 	rec = 1 - dom
 	
 	# grafica muestras
 	plt.clf()
 	plt.scatter(t1[bur:], t2[bur:], marker='.', color='black')
+	plt.scatter(t1[:bur], t2[:bur], marker='+', linewidth=0.5, color='black') # burn in 
 	plt.scatter(t1[0], t2[0], color='purple', label='inicio')
 	plt.plot(dom, rec, color='black')
 	plt.scatter(t1_99, t2_99, marker='.', color='navy', label='99%')
@@ -404,13 +409,14 @@ for o in range(M):
 	plt.xlabel('$\Omega_{m}$')
 	plt.ylabel('$\Omega_{\Lambda}$')
 	plt.scatter(t1m, t2m, marker='x', s=20, color='black', label=('$\Omega_{m,0}$='+str(t1m)+' '+'$\Omega_{\Lambda}$='+str(t2m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3 ))))
-	#plt.xlim([-0.1, 1.2])
-	#plt.ylim([-0.25, 1.75])	
+	plt.xlim([0, 1])
+	plt.ylim([0, 2])	
 	plt.legend()
-	plt.savefig('chain_'+str(o)+'_plot_1')
+	plt.savefig('/home/mauricio/Desktop/chain/chain_'+str(o)+'_plot_1')
 	
 	plt.clf()
 	plt.scatter(t1[bur:], t3[bur:], marker='.', color='black')
+	plt.scatter(t1[:bur], t3[:bur], marker='+', linewidth=0.5, color='black') # burn in 
 	plt.scatter(t1[0], t3[0], color='purple', label='inicio')
 	plt.scatter(t1_99, t3_99, marker='.', color='navy', label='99%')
 	plt.scatter(t1_95, t3_95, marker='.', color='green', label='95%')
@@ -419,13 +425,14 @@ for o in range(M):
 	plt.xlabel('$\Omega_{m}$')
 	plt.ylabel('w')
 	plt.scatter(t1m, t3m, marker='x', s=20, color='black', label=('$\Omega_{m,0}$='+str(t1m)+' '+'$w=$'+str(t3m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3))))
-	#plt.xlim([-0.1, 0.5])
-	#plt.ylim([-2.5, -0.5])
+	plt.xlim([0, 1])
+	plt.ylim([-5, 0])
 	plt.legend()
-	plt.savefig('chain_'+str(o)+'_plot_2')
+	plt.savefig('/home/mauricio/Desktop/chain/chain_'+str(o)+'_plot_2')
 	
 	plt.clf()
 	plt.scatter(t2[bur:], t3[bur:], marker='.', color='black')
+	plt.scatter(t2[:bur], t2[:bur], marker='+', linewidth=0.5, color='black') # burn in 
 	plt.scatter(t2[0], t3[0], color='purple', label='inicio')
 	plt.scatter(t2_99, t3_99, marker='.', color='navy', label='99%')
 	plt.scatter(t2_95, t3_95, marker='.', color='green', label='95%')
@@ -434,11 +441,12 @@ for o in range(M):
 	plt.xlabel('$\Omega_{\Lambda}$')
 	plt.ylabel('w')
 	plt.scatter(t2m, t3m, marker='x', s=20, color='black', label=('$\Omega_{\Lambda}$='+str(t2m)+' '+'$w=$'+str(t3m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3))))
-	#plt.xlim([0.2, 1.8])
-	#plt.ylim([-2.75, -0.5])
+	plt.xlim([0, 2])
+	plt.ylim([-5, 0])
 	plt.legend()
-	plt.savefig('chain_'+str(o)+'_plot_3')
+	plt.savefig('/home/mauricio/Desktop/chain/chain_'+str(o)+'_plot_3')
 		
+	
 	# guarda xi2, post, cadena y covarianza en txt
 	#np.savetxt('chain_'+str(o)+'_xi2', chi_2)
 	#np.savetxt('chain_'+str(o)+'_post', post)
@@ -446,25 +454,39 @@ for o in range(M):
 	#np.savetxt('chain_'+str(o)+'_cov', covarianza)	
 
 	# modificacion de varianza
-	r = 1e-1
+	r = 1.3e-1
 
-	# actualiza covarianza sin burn in
+	# actualiza covarianza sin burn in y guarda recien usada	
 	COV.append(covarianza)
-	covarianza = np.cov(chain[bur:,:].T)#*r	
+	covarianza = np.cov(chain[bur:,:].T, ddof=0)*r	
+	
+	# guarda caractteristicas de la cadena
 	Chains.append(chain)
 	Post.append(post)
 	Xi2.append(chi_2)
-
-	
-	
+	Tasa.append(Ratio)	
 	
 Chains = np.array(Chains)
 Post = np.array(Post)
 Xi2 =  np.array(Xi2)
+Tasa = np.array(Tasa)
+COV = np.array(COV)
+
+# plot tasa de aceptacion
+plt.clf()
+for i in range(M):
+	lab = 'cadena '+str(i)
+	plt.plot(Tasa[i,:], label=lab)
+plt.axhline(23.4, color='black', linestyle='--')
+plt.legend()
+plt.xlabel('paso')
+plt.ylabel('aceptacion $\%$')
+plt.title('Tasa de aceptacion')
+plt.savefig('/home/mauricio/Desktop/chain/chain_tasa')
 
 # plot posterior de las cadenas
 plt.clf()
-for i in range(10):
+for i in range(M):
 	lab = 'cadena '+str(i)
 	plt.plot(Xi2[i,:], label=lab)
 	plt.scatter(bur, Xi2[i,bur], marker='.', color='black')
@@ -479,7 +501,7 @@ plt.savefig('/home/mauricio/Desktop/chain/evolucion')
 
 # plot muestras de cada parametro
 
-for i in range(10):
+for i in range(M):
    	plt.clf()
 	plt.plot(Chains[i,:,:])
 	plt.title('cadena '+str(i))
@@ -490,7 +512,7 @@ for i in range(10):
 for i in range(params):
 	print i
 	plt.clf()
-	covp = np.cov(Chains[:,:,i])
+	covp = np.cov(Chains[:,:,i], ddof=0)
 	plt.imshow(covp, origin='lower')
 	plt.colorbar()
 	plt.xlabel('cadena')
