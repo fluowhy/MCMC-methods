@@ -447,10 +447,8 @@ for o in range(M):
 	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_plot_3')
 		
 	
-	# guarda xi2, post, cadena y covarianza en txt
-	#np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_xi2', chi_2)
-	#np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_post', post)
-	#np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_chain', chain)
+	# guarda cadena, chi2 y covarianza en txt
+	#np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o), np.vstack((chain[:,0], chain[:,1], chain[:,2], chi_2)).T)
 	#np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_cov', covarianza)	
 
 	# modificacion de varianza

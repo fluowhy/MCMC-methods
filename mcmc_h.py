@@ -222,7 +222,8 @@ def cuenta(x2, W):
 
 
 def potencial(dat, sigma, theta, z):
-	u = - likelihood(modelo(theta, z), dat, sigma) - prior(theta) 
+	mod = modelo(theta, z)
+	u = - likelihood(mod, dat, sigma) - prior(theta) 
 	return u
 
 
@@ -243,21 +244,24 @@ def gradiente(dw, theta, z, dat, sigma):
 	return grad
 
 
-def leapfrog(pi, l, e, m, dw, theta, z, dat, sigma):
-	X = []
-	P = []
-	X.append(theta)
-	P.append(pi)
+def leapfrog(l, e, dw, theta, m, z, dat, sigma):
 	qe = theta
-	pe = pi
-	while True:
-		pe = np.random.normal(size=3)
-		for i in range(l):		
-			pe = pi - 0.5*e*gradiente(dw, qe, z, dat, sigma) # actualiza momento en e/2	
+	while True:		
+		pi = np.random.multivariate_normal(mean=np.zeros(3), cov=np.diag(m))	
+		pe = pi
+		X = []
+		P = []
+		X.append(theta)
+		P.append(pe)		
+		for i in range(l):
+			rev = revisa(qe, z)*revisa(qe+0.5*dw, z)*revisa(qe-0.5*dw, z)
+			if rev==0:
+				break	
+			pe = pe - 0.5*e*gradiente(dw, qe, z, dat, sigma) # actualiza momento en e/2	
 			qe = qe + e*pe/m
 			rev = revisa(qe, z)*revisa(qe+0.5*dw, z)*revisa(qe-0.5*dw, z)
-			if revisa(qe, z)==0 and revisa(qe+0.5*dw, z)==0 and revisa(qe-0.5*dw, z)==0:
-				break
+			if rev==0:
+				break			
 			pe = pe - 0.5*e*gradiente(dw, qe, z, dat, sigma)
 			P.append(pe)
 			X.append(qe)
@@ -293,16 +297,32 @@ cov = np.diag(cov)
 # Configuracion cadena
 ##########################################################################
 
-M = 2 # numero de cadenas
+lab = ['$\Omega_{m}$', '$\Omega_{\Lambda}$', 'w']
+M = 1 # numero de cadenas
 Chains = []
 Xi2 = []
 Post = []
 COV = []
 params = 3 # numero de parametros
-r = 1e0
-m = np.ones(3)*r # varianza de la energia cinetica, vector de "masas"
-
-print 'numero de parametros', params
+r = 0.75e-2
+m = np.ones(3)*r # (np.array([0.4, 1.125, 4])**2)*1e-2  
+pg = 1e-4 # paso gradiente
+ps = pg*10 # paso solver
+'numero de parametros', params
+# q inicial, revisa que sea valido
+while True:	
+	q = np.random.uniform(low=[0,0,-5], high=[1, 2, 0], size=3)
+	if revisa(q,redshift)==1: 
+		break
+print 'params iniciales', q
+L = 10
+print 'pasos solver:', L
+N = 5000
+print 'numero de muestras:', N
+# guarda configuracion en txt
+names = ['params', 'cov_p', 'grad_step', 'solver_step', 'solver_steps', 'samples'] 
+conf = [params, r, pg, ps, L, N]
+np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chain_info', np.vstack((names, conf)).T, delimiter=' ', fmt='%s')
 
 for o in range(M):
 	print 'cadena ', o
@@ -311,50 +331,32 @@ for o in range(M):
 	post = [] 
 	chi_2 = []
 	Ratio = []
+	H = []
 	acept = 0
-	# q inicial, revisa que sea valido
-	while True:	
-		q = np.random.uniform(low=[0,0,-4], high=[2, 2, 0], size=3)
-		if revisa(q,redshift)==1: 
-			break
-	print 'params iniciales', q
 	mod1 = modelo(q, redshift)
 	pos1 = potencial(mu_obs, cov, q, redshift)
 	Chi1 = chi2(mod1, mu_obs, cov)[0]	
 	chain.append(q)
 	post.append(pos1)
 	chi_2.append(Chi1)
-	Ratio.append(100)	
-	
-	N = 1000 # numero de muestras
-	
+	Ratio.append(100)		
+		
 	Ti = time.time()
 	for i in range(N):
+		print i
 		q = chain[i]		
 		# revision si proposal no indefine la busqueda
-		while True:
-			if i>100:
-				p = np.random.normal(loc=np.zeros(3), scale=m, size=3)	
-			else: 
-				p = np.random.normal(loc=np.zeros(3), scale=m, size=3)	
-			Q, P = leapfrog(p, 25, 1e-3, m, 1e-4, q, redshift, mu_obs, cov)
-			#H = []			
-			#for ip, iq in zip(Q,P):
-			#	H.append(hamiltoniano(ip, mu_obs, cov, iq, redshift, m=1))
-			#plt.plot(Q[:,0], Q[:,1])
-			#plt.scatter(q[0], q[1], color='red')
-			#plt.xlim([0, 2])
-			#plt.ylim([0, 2])			
-			#plt.show()		
+		while True:			
+			Q, P = leapfrog(L, ps, pg, q, m, redshift, mu_obs, cov)			
 			Q1 = Q[-1]
 			P1 = P[-1]		
 			if revisa(Q1, redshift)==1: # que la raiz no sea imaginaria
 				break		
-		t = cinetica(p, m)
+		H.append(Q)
+		t = cinetica(P1[0], m)
 		u = potencial(mu_obs, cov, q, redshift)
 		T = cinetica(P1, m)
-		U = potencial(mu_obs, cov, Q1, redshift)
-		
+		U = potencial(mu_obs, cov, Q1, redshift)		
 		A = acepta(t, u, T, U, q, Q1)
 		chain.append(A[0])
 		post.append(A[1])
@@ -375,32 +377,18 @@ for o in range(M):
 	chain = np.array(chain)
 	chi_2 = np.array(chi_2)
 	Ratio = np.array(Ratio)
+	H = np.array(H)
 
 	t1 = chain[:,0]
 	t2 = chain[:,1]
 	t3 = chain[:,2]
-	
-	# saca burn in
-	#t1 = t1[70:] 
-	#t2 = t2[70:]
-	#t3 = t3[70:]
 
 	# busca argumento del minimo de chi2
 	t1m, t2m, t3m = np.around(argmin2(t1, t2, t3, chi_2),3)
 	print 'Xi2 minimo', t1m, t2m, t3m
 
-	# plot tasa de aceptacion
-	plt.clf()
-	plt.plot(Ratio)
-	plt.xlabel('paso')
-	plt.ylabel('aceptacion $\%$')
-	plt.title('Tasa de aceptacion')
-	plt.savefig('chain_'+str(o)+'_tasa')
-
 	"""
 	# regiones de confianza
-
-
 	r1 = dx2(1,2)
 	r2 = dx2(2,2)
 	r3 = dx2(3,2)
@@ -418,8 +406,7 @@ for o in range(M):
 	plt.ylabel('$\Omega_{\Lambda}$')
 	plt.legend()
 	plt.show()
-	"""
-	
+	"""	
 	# Regiones de confianza y plots de muestras
 
 	# regiones metodo 2 (segun orden de Xi2)
@@ -436,10 +423,7 @@ for o in range(M):
 	t3_99 = vals[0][8]
 
 	# grafica de la linea universo plano
-	t1min = min(t1)
-	t1max = max(t1)
-
-	dom = np.linspace(t1min, t1max, 100)
+	dom = np.linspace(0, 1, 100)
 	rec = 1 - dom
 
 	# grafica muestras
@@ -454,11 +438,11 @@ for o in range(M):
 	plt.xlabel('$\Omega_{m}$')
 	plt.ylabel('$\Omega_{\Lambda}$')
 	plt.scatter(t1m, t2m, marker='x', s=20, color='black', label=('$\Omega_{m,0}$='+str(t1m)+' '+'$\Omega_{\Lambda}$='+str(t2m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3 ))))
-	#plt.xlim([-0.1, 1.2])
-	#plt.ylim([-0.25, 1.75])	
+	plt.xlim([0, 1])
+	plt.ylim([0, 2])	
 	plt.legend()
-	plt.savefig('chain_'+str(o)+'_plot_1')
-	
+	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chain_'+str(o)+'_plot_1')
+
 	plt.clf()
 	plt.scatter(t1, t3, marker='.', color='black')
 	plt.scatter(t1[0], t3[0], color='purple', label='inicio')
@@ -469,11 +453,11 @@ for o in range(M):
 	plt.xlabel('$\Omega_{m}$')
 	plt.ylabel('w')
 	plt.scatter(t1m, t3m, marker='x', s=20, color='black', label=('$\Omega_{m,0}$='+str(t1m)+' '+'$w=$'+str(t3m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3))))
-	#plt.xlim([-0.1, 0.5])
-	#plt.ylim([-2.5, -0.5])
+	plt.xlim([0, 1])
+	plt.ylim([-5, 0])
 	plt.legend()
-	plt.savefig('chain_'+str(o)+'_plot_2')
-	
+	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chain_'+str(o)+'_plot_2')
+
 	plt.clf()
 	plt.scatter(t2, t3, marker='.', color='black')
 	plt.scatter(t2[0], t3[0], color='purple', label='inicio')
@@ -484,24 +468,80 @@ for o in range(M):
 	plt.xlabel('$\Omega_{\Lambda}$')
 	plt.ylabel('w')
 	plt.scatter(t2m, t3m, marker='x', s=20, color='black', label=('$\Omega_{\Lambda}$='+str(t2m)+' '+'$w=$'+str(t3m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3))))
-	#plt.xlim([0.2, 1.8])
-	#plt.ylim([-2.75, -0.5])
+	plt.xlim([0, 2])
+	plt.ylim([-5, 0])
 	plt.legend()
-	plt.savefig('chain_'+str(o)+'_plot_3')
-	
+	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chain_'+str(o)+'_plot_3')
+
 	covarianza = np.cov(chain.T)
 
-	# guarda xi2, post, cadena y covarianza en txt
-	np.savetxt('chain_'+str(o)+'_xi2', chi_2)
-	np.savetxt('chain_'+str(o)+'_post', post)
-	np.savetxt('chain_'+str(o)+'_chain', chain)
-	np.savetxt('chain_'+str(o)+'_cov', covarianza)	
-		
+	# guarda cadena, chi2 y covarianza en txt
+	np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chain_'+str(o), np.vstack((chain[:,0], chain[:,1], chain[:,2], chi_2)).T)
+	np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chain_'+str(o)+'_cov', covarianza)	
+
+	# plot varios
+
+	# plot tasa de aceptacion
+	plt.clf()
+	plt.plot(Ratio)
+	plt.xlabel('paso')
+	plt.ylabel('aceptacion $\%$')
+	plt.title('Tasa de aceptacion')
+	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/tasa_chain_'+str(o)+'_tasa')
+	
+	# plot chi2
+	plt.clf()
+	plt.plot(chi_2)
+	plt.title('$\chi^{2}$')
+	plt.xlabel('muestra')
+	plt.ylabel('$\chi^{2}$')
+	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chi_2_chain_'+str(o))
+
+	# plot cadenas
+	plt.clf()
+	for i in range(3):
+		plt.plot(chain[:,i], label=lab[i])
+	plt.title('cadenas')
+	plt.xlabel('muestra')
+	plt.ylabel('parametros')
+	plt.legend()
+	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/cadenas_'+str(o))
+
+	# plot pasos solver
+	plt.clf()	
+	for i in range(H.shape[0]):
+		plt.plot(H[i, :, 0], H[i, :, 1])
+		plt.xlim([0, 1])
+		plt.ylim([0, 2])
+	plt.title('caminos')
+	plt.xlabel('$\Omega_{m}$')
+	plt.ylabel('$\Omega_{\Lambda}$')
+	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/H_1_'+str(o))
+
+	plt.clf()	
+	for i in range(H.shape[0]):
+		plt.plot(H[i, :, 0], H[i, :, 2])
+		plt.xlim([0, 1])
+		plt.ylim([-5, 0])
+	plt.title('caminos')
+	plt.xlabel('$\Omega_{m}$')
+	plt.ylabel('w')
+	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/H_2_'+str(o))
+
+	plt.clf()	
+	for i in range(H.shape[0]):
+		plt.plot(H[i, :, 1], H[i, :, 2])
+		plt.xlim([0, 2])
+		plt.ylim([-5, 0])
+	plt.title('caminos')
+	plt.xlabel('$\Omega_{\Lambda}$')
+	plt.ylabel('w')
+	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/H_3_'+str(o))
+
 	COV.append(covarianza)
 	Chains.append(chain)
 	Post.append(post)
-	Xi2.append(chi_2)
-	
+	Xi2.append(chi_2)	
 	
 Chains = np.array(Chains)
 Post = np.array(Post)
