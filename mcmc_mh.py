@@ -228,8 +228,11 @@ cov = np.diag(cov)
 
 # configuracion cadena
 
+# params
+labs = ['$\Omega_{m}$', '$\Omega_{\Lambda}$', 'w']
+
 # numero de cadenas
-M = 20
+M = 10
 # matriz que guarda cadenas, chi2, dist. post., covarianza y tasa.
 Chains = []
 Xi2 = []
@@ -288,7 +291,7 @@ for o in range(M):
 	chi_2.append(chi2(mu_mod, mu_obs, cov)[0])
 	Ratio.append(100)	
 	# numero de muestras
-	N = 10000
+	N = 5000
 	# pasos de cadena
 	Ti = time.time()
 	for i in range(N):
@@ -448,8 +451,8 @@ for o in range(M):
 		
 	
 	# guarda cadena, chi2 y covarianza en txt
-	#np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o), np.vstack((chain[:,0], chain[:,1], chain[:,2], chi_2)).T)
-	#np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_cov', covarianza)	
+	np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o), np.vstack((chain[:,0], chain[:,1], chain[:,2], chi_2)).T)
+	np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_cov', covarianza)	
 
 	# modificacion de varianza
 	r = 1.3e-1
@@ -480,7 +483,7 @@ plt.legend()
 plt.xlabel('paso')
 plt.ylabel('aceptacion $\%$')
 plt.title('Tasa de aceptacion')
-plt.savefig('/home/mauricio/Desktop/chain/chain_tasa')
+plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_tasa')
 
 # plot posterior de las cadenas
 plt.clf()
@@ -495,15 +498,19 @@ plt.ylabel('$\chi^{2}$')
 plt.xlim([0, 500])
 plt.ylim([550, 600])
 plt.legend()
-plt.savefig('/home/mauricio/Desktop/chain/evolucion')
+plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/evolucion')
 
 # plot muestras de cada parametro
 
 for i in range(M):
    	plt.clf()
-	plt.plot(Chains[i,:,:])
+	for j in range(params):
+		plt.plot(Chains[i,:,j], label=labs[j])
 	plt.title('cadena '+str(i))
-    	plt.savefig('/home/mauricio/Desktop/chain/chain_'+str(i))
+	plt.xlabel('muestras')
+	plt.ylabel('parametros')
+	plt.legend()
+    	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(i))
 
 # covarianza entre parametros de distintas cadenas
 """
@@ -620,7 +627,5 @@ plt.legend()
 plt.savefig('r_om_w')
 """
 
-#-------------------------------------------------------------------
-#___________________________________________________________________
 
 
