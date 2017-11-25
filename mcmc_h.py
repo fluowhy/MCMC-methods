@@ -36,7 +36,7 @@ def prior(theta): # log(pi)
 
 
 def acepta(ec, ep, EC, EP, x, X):
-	alpha = min(- EP + ep - ec + EC, 0) # log(alpha)
+	alpha = min(- EP - EC + ep + ec, 0) # log(alpha)
 	u = np.log(np.random.uniform())
 	if u<alpha:
 		return X, EP
@@ -272,6 +272,10 @@ def leapfrog(l, e, dw, theta, m, z, dat, sigma):
 	return X, P
 
 
+# saved things directory
+direc = '/home/mauricio/Documents/Hamilton/'
+
+
 plt.clf()
 
 """
@@ -304,9 +308,9 @@ Xi2 = []
 Post = []
 COV = []
 params = 3 # numero de parametros
-r = 0.75e-2
-m = np.ones(3)*r # (np.array([0.4, 1.125, 4])**2)*1e-2  
-pg = 1e-4 # paso gradiente
+r = 0.75e-2 #0.75e-2
+m = np.array([0.5, 0.5, 1])*r  # np.ones(3)*r # (np.array([0.4, 1.125, 4])**2)*1e-2  
+pg = 1e-4 # paso gradiente # 0.5
 ps = pg*10 # paso solver
 'numero de parametros', params
 # q inicial, revisa que sea valido
@@ -314,15 +318,16 @@ while True:
 	q = np.random.uniform(low=[0,0,-5], high=[1, 2, 0], size=3)
 	if revisa(q,redshift)==1: 
 		break
+q = np.loadtxt('initial')
 print 'params iniciales', q
-L = 10
+L = 5
 print 'pasos solver:', L
-N = 5000
+N = 10000
 print 'numero de muestras:', N
 # guarda configuracion en txt
 names = ['params', 'cov_p', 'grad_step', 'solver_step', 'solver_steps', 'samples'] 
 conf = [params, r, pg, ps, L, N]
-np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chain_info', np.vstack((names, conf)).T, delimiter=' ', fmt='%s')
+np.savetxt(direc+'chain_info', np.vstack((names, conf)).T, delimiter=' ', fmt='%s')
 
 for o in range(M):
 	print 'cadena ', o
@@ -392,11 +397,9 @@ for o in range(M):
 	r1 = dx2(1,2)
 	r2 = dx2(2,2)
 	r3 = dx2(3,2)
-
 	t1_new_1, t2_new_1 = samples_s(t1, t2, chi_2, r1)
 	t1_new_2, t2_new_2 = samples_s(t1, t2, chi_2, r2)
 	t1_new_3, t2_new_3 = samples_s(t1, t2, chi_2, r3)
-
 	plt.scatter(t1_new_3, t2_new_3, marker='.', color='navy', label='99%')
 	plt.scatter(t1_new_2, t2_new_2, marker='.', color='green', label='95%')
 	plt.scatter(t1_new_1, t2_new_1, marker='.', color='red', label='68%')
@@ -441,7 +444,7 @@ for o in range(M):
 	plt.xlim([0, 1])
 	plt.ylim([0, 2])	
 	plt.legend()
-	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chain_'+str(o)+'_plot_1')
+	plt.savefig(direc+'chain_'+str(o)+'_plot_1')
 
 	plt.clf()
 	plt.scatter(t1, t3, marker='.', color='black')
@@ -456,7 +459,7 @@ for o in range(M):
 	plt.xlim([0, 1])
 	plt.ylim([-5, 0])
 	plt.legend()
-	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chain_'+str(o)+'_plot_2')
+	plt.savefig(direc+'chain_'+str(o)+'_plot_2')
 
 	plt.clf()
 	plt.scatter(t2, t3, marker='.', color='black')
@@ -471,13 +474,13 @@ for o in range(M):
 	plt.xlim([0, 2])
 	plt.ylim([-5, 0])
 	plt.legend()
-	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chain_'+str(o)+'_plot_3')
+	plt.savefig(direc+'chain_'+str(o)+'_plot_3')
 
 	covarianza = np.cov(chain.T)
 
 	# guarda cadena, chi2 y covarianza en txt
-	np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chain_'+str(o), np.vstack((chain[:,0], chain[:,1], chain[:,2], chi_2)).T)
-	np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chain_'+str(o)+'_cov', covarianza)	
+	np.savetxt(direc+'chain_'+str(o), np.vstack((chain[:,0], chain[:,1], chain[:,2], chi_2)).T)
+	np.savetxt(direc+'chain_'+str(o)+'_cov', covarianza)	
 
 	# plot varios
 
@@ -487,7 +490,7 @@ for o in range(M):
 	plt.xlabel('paso')
 	plt.ylabel('aceptacion $\%$')
 	plt.title('Tasa de aceptacion')
-	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/tasa_chain_'+str(o)+'_tasa')
+	plt.savefig(direc+'tasa_chain_'+str(o)+'_tasa')
 	
 	# plot chi2
 	plt.clf()
@@ -495,7 +498,7 @@ for o in range(M):
 	plt.title('$\chi^{2}$')
 	plt.xlabel('muestra')
 	plt.ylabel('$\chi^{2}$')
-	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/chi_2_chain_'+str(o))
+	plt.savefig(direc+'chi_2_chain_'+str(o))
 
 	# plot cadenas
 	plt.clf()
@@ -505,7 +508,7 @@ for o in range(M):
 	plt.xlabel('muestra')
 	plt.ylabel('parametros')
 	plt.legend()
-	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/cadenas_'+str(o))
+	plt.savefig(direc+'cadenas_'+str(o))
 
 	# plot pasos solver
 	plt.clf()	
@@ -516,7 +519,7 @@ for o in range(M):
 	plt.title('caminos')
 	plt.xlabel('$\Omega_{m}$')
 	plt.ylabel('$\Omega_{\Lambda}$')
-	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/H_1_'+str(o))
+	plt.savefig(direc+'H_1_'+str(o))
 
 	plt.clf()	
 	for i in range(H.shape[0]):
@@ -526,7 +529,7 @@ for o in range(M):
 	plt.title('caminos')
 	plt.xlabel('$\Omega_{m}$')
 	plt.ylabel('w')
-	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/H_2_'+str(o))
+	plt.savefig(direc+'H_2_'+str(o))
 
 	plt.clf()	
 	for i in range(H.shape[0]):
@@ -536,7 +539,7 @@ for o in range(M):
 	plt.title('caminos')
 	plt.xlabel('$\Omega_{\Lambda}$')
 	plt.ylabel('w')
-	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/Hamilton/H_3_'+str(o))
+	plt.savefig(direc+'H_3_'+str(o))
 
 	COV.append(covarianza)
 	Chains.append(chain)
@@ -584,7 +587,6 @@ myrange3 = [min(t2), max(t2), min(t3), max(t3)]
 # curvas de nivel
 bins = 100
 H,[x,y,z] = np.histogramdd((t1, t2, t3), bins=(bins, bins, bins), range=[[min(t1), max(t1)], [min(t2), max(t2)], [min(t3), max(t3)]]) 
-
 dx = abs(max(x)-min(x))
 dy = abs(max(y)-min(y))
 dz = abs(max(z)-min(z))
@@ -602,9 +604,7 @@ amin = np.argmin(chi_2)
 t1min = np.argmin(abs(t1[amin]-xn))
 t2min = np.argmin(abs(t2[amin]-yn))
 t3min = np.argmin(abs(t3[amin]-zn))
-
 hs = np.linspace(np.min(H), np.max(H), 2000)
-
 min99 = np.inf
 min95 = np.inf
 min68 = np.inf
@@ -628,9 +628,7 @@ for i in hs:
 print 'a99', a99
 print 'a95', a95
 print 'a68', a68
-
 levels = (h99, h95, h68)
-
 # om, ol
 plt.clf()
 plt.scatter(t1, t2, marker='.', color='black')
@@ -641,7 +639,6 @@ plt.xlabel('$\Omega_{m,0}$')
 plt.ylabel('$\Omega_{DE,0}$')
 plt.legend()
 plt.savefig('r_om_ol')
-
 # ol, w
 plt.clf()
 plt.scatter(t2, t3, marker='.', color='black')
@@ -651,7 +648,6 @@ plt.ylabel('$w$')
 plt.xlabel('$\Omega_{DE,0}$')
 plt.legend()
 plt.savefig('r_ol_w')
-
 # om, w
 plt.clf()
 plt.scatter(t1, t3, marker='.', color='black')
@@ -662,8 +658,4 @@ plt.ylabel('$w$')
 plt.legend()
 plt.savefig('r_om_w')
 """
-
-#-------------------------------------------------------------------
-#___________________________________________________________________
-
 

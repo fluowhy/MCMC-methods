@@ -19,6 +19,7 @@ def likelihood(mod, dat, sigma): # retorna escalar, log(L)
 	#a1[pp] = 0
 	return L
 
+
 def chi2(mod, dat, sigma):
 	sig = np.diagonal(sigma)
 	AA = np.sum(((dat - mod)/sig)**2)
@@ -212,6 +213,10 @@ def cuenta(x2, W):
 	for wi in W:
 		R = np.concatenate((R, np.array((wi[:ms68], wi[:ms95], wi[:ms99]))))
 	return R, x2[ms68], x2[ms95], x2[ms99]
+
+
+# saved things directory
+direc = '/home/mauricio/Documents/Metropolis/'
 	
 plt.clf()
 
@@ -258,10 +263,15 @@ else:
 	print 'covarianza estatica', r
 print 'parametros', params
 
+# numero de muestras
+N = 10000
+
 while True:	
 	T = np.random.uniform(low=[0,0,-5], high=[1, 2, 0], size=3)
 	if revisa(T,redshift)==1: 
 		break
+T = np.loadtxt('initial')
+np.savetxt('initial', T)
 # inicia cadenas
 for o in range(M):
 	d = 0
@@ -290,8 +300,7 @@ for o in range(M):
 	mod.append(mu_mod)
 	chi_2.append(chi2(mu_mod, mu_obs, cov)[0])
 	Ratio.append(100)	
-	# numero de muestras
-	N = 5000
+	
 	# pasos de cadena
 	Ti = time.time()
 	for i in range(N):
@@ -360,15 +369,12 @@ for o in range(M):
 	
 	"""
 	# regiones de confianza
-
 	r1 = dx2(1,2)
 	r2 = dx2(2,2)
 	r3 = dx2(3,2)
-
 	t1_new_1, t2_new_1 = samples_s(t1, t2, chi_2, r1)
 	t1_new_2, t2_new_2 = samples_s(t1, t2, chi_2, r2)
 	t1_new_3, t2_new_3 = samples_s(t1, t2, chi_2, r3)
-
 	plt.scatter(t1_new_3, t2_new_3, marker='.', color='navy', label='99%')
 	plt.scatter(t1_new_2, t2_new_2, marker='.', color='green', label='95%')
 	plt.scatter(t1_new_1, t2_new_1, marker='.', color='red', label='68%')
@@ -402,57 +408,57 @@ for o in range(M):
 	# grafica muestras
 	plt.clf()
 	plt.scatter(t1[bur:], t2[bur:], marker='.', color='black')
-	plt.scatter(t1[:bur], t2[:bur], marker='+', linewidth=0.5, color='black') # burn in 
-	plt.scatter(t1[0], t2[0], color='purple', label='inicio')
+	#plt.scatter(t1[:bur], t2[:bur], marker='+', linewidth=0.5, color='black') # burn in 
+	plt.scatter(t1[0], t2[0], color='purple', label='Initial sample')
 	plt.plot(dom, rec, color='black')
 	plt.scatter(t1_99, t2_99, marker='.', color='navy', label='99%')
 	plt.scatter(t1_95, t2_95, marker='.', color='green', label='95%')
 	plt.scatter(t1_68, t2_68, marker='.', color='red', label='68%')
-	plt.title('Muestras cadena '+str(o))
+	plt.title('Samples chain '+str(o))
 	plt.xlabel('$\Omega_{m}$')
 	plt.ylabel('$\Omega_{\Lambda}$')
 	plt.scatter(t1m, t2m, marker='x', s=20, color='black', label=('$\Omega_{m,0}$='+str(t1m)+' '+'$\Omega_{\Lambda}$='+str(t2m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3 ))))
 	plt.xlim([0, 1])
 	plt.ylim([0, 2])	
 	plt.legend()
-	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_plot_1')
+	plt.savefig(direc+'chain_'+str(o)+'_plot_1')
 	
 	plt.clf()
 	plt.scatter(t1[bur:], t3[bur:], marker='.', color='black')
-	plt.scatter(t1[:bur], t3[:bur], marker='+', linewidth=0.5, color='black') # burn in 
-	plt.scatter(t1[0], t3[0], color='purple', label='inicio')
+	#plt.scatter(t1[:bur], t3[:bur], marker='+', linewidth=0.5, color='black') # burn in 
+	plt.scatter(t1[0], t3[0], color='purple', label='Initial sample')
 	plt.scatter(t1_99, t3_99, marker='.', color='navy', label='99%')
 	plt.scatter(t1_95, t3_95, marker='.', color='green', label='95%')
 	plt.scatter(t1_68, t3_68, marker='.', color='red', label='68%')
-	plt.title('Muestras cadena '+str(o))
+	plt.title('Samples chain '+str(o))
 	plt.xlabel('$\Omega_{m}$')
 	plt.ylabel('w')
 	plt.scatter(t1m, t3m, marker='x', s=20, color='black', label=('$\Omega_{m,0}$='+str(t1m)+' '+'$w=$'+str(t3m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3))))
 	plt.xlim([0, 1])
 	plt.ylim([-5, 0])
 	plt.legend()
-	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_plot_2')
+	plt.savefig(direc+'chain_'+str(o)+'_plot_2')
 	
 	plt.clf()
 	plt.scatter(t2[bur:], t3[bur:], marker='.', color='black')
-	plt.scatter(t2[:bur], t2[:bur], marker='+', linewidth=0.5, color='black') # burn in 
-	plt.scatter(t2[0], t3[0], color='purple', label='inicio')
+	#plt.scatter(t2[:bur], t2[:bur], marker='+', linewidth=0.5, color='black') # burn in 
+	plt.scatter(t2[0], t3[0], color='purple', label='Initial sample')
 	plt.scatter(t2_99, t3_99, marker='.', color='navy', label='99%')
 	plt.scatter(t2_95, t3_95, marker='.', color='green', label='95%')
 	plt.scatter(t2_68, t3_68, marker='.', color='red', label='68%')
-	plt.title('Muestras cadena '+str(o))
+	plt.title('Samples chain '+str(o))
 	plt.xlabel('$\Omega_{\Lambda}$')
 	plt.ylabel('w')
 	plt.scatter(t2m, t3m, marker='x', s=20, color='black', label=('$\Omega_{\Lambda}$='+str(t2m)+' '+'$w=$'+str(t3m)+' '+'$\chi^{2}$='+str(np.around(min(chi_2),3))))
 	plt.xlim([0, 2])
 	plt.ylim([-5, 0])
 	plt.legend()
-	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_plot_3')
+	plt.savefig(direc+'chain_'+str(o)+'_plot_3')
 		
 	
-	# guarda cadena, chi2 y covarianza en txt
-	np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o), np.vstack((chain[:,0], chain[:,1], chain[:,2], chi_2)).T)
-	np.savetxt('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(o)+'_cov', covarianza)	
+	# guarda cadena, chi2, acceptance ratio y covarianza en txt
+	np.savetxt(direc+'chain_'+str(o), np.vstack((chain[:,0], chain[:,1], chain[:,2], chi_2, Ratio)).T)
+	np.savetxt(direc+'chain_'+str(o)+'_cov', covarianza)	
 
 	# modificacion de varianza
 	r = 1.3e-1
@@ -461,7 +467,7 @@ for o in range(M):
 	COV.append(covarianza)
 	covarianza = np.cov(chain[bur:,:].T, ddof=0)*r	
 	
-	# guarda caractteristicas de la cadena
+	# guarda caracteristicas de la cadena
 	Chains.append(chain)
 	Post.append(post)
 	Xi2.append(chi_2)
@@ -476,29 +482,29 @@ COV = np.array(COV)
 # plot tasa de aceptacion
 plt.clf()
 for i in range(M):
-	lab = 'cadena '+str(i)
+	lab = 'Chain '+str(i)
 	plt.plot(Tasa[i,:], label=lab)
 plt.axhline(23.4, color='black', linestyle='--')
 plt.legend()
-plt.xlabel('paso')
-plt.ylabel('aceptacion $\%$')
-plt.title('Tasa de aceptacion')
-plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_tasa')
+plt.xlabel('Chain step')
+plt.ylabel('Acceptance $\%$')
+plt.title('Acceptance ratio')
+plt.savefig(direc+'chain_tasa')
 
-# plot posterior de las cadenas
+# plot chi de las cadenas
 plt.clf()
 for i in range(M):
 	lab = 'cadena '+str(i)
 	plt.plot(Xi2[i,:], label=lab)
 	plt.scatter(bur, Xi2[i,bur], marker='.', color='black')
 plt.axhline(580, linestyle='--', color='black')
-plt.title('Evolucion $\chi^{2}$')
-plt.xlabel('muestra')
+plt.title('$\chi^{2}$ evolution')
+plt.xlabel('Sample')
 plt.ylabel('$\chi^{2}$')
 plt.xlim([0, 500])
 plt.ylim([550, 600])
 plt.legend()
-plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/evolucion')
+plt.savefig(direc+'evolucion')
 
 # plot muestras de cada parametro
 
@@ -506,11 +512,11 @@ for i in range(M):
    	plt.clf()
 	for j in range(params):
 		plt.plot(Chains[i,:,j], label=labs[j])
-	plt.title('cadena '+str(i))
-	plt.xlabel('muestras')
-	plt.ylabel('parametros')
+	plt.title('Chain '+str(i))
+	plt.xlabel('Chain step')
+	plt.ylabel('Parameter value (adimentional)')
 	plt.legend()
-    	plt.savefig('/home/mauricio/Documents/Uni/Introduccion_a_la_Investigacion/MH/chain_'+str(i))
+    	plt.savefig(direc+'chain_'+str(i))
 
 # covarianza entre parametros de distintas cadenas
 """
@@ -548,7 +554,6 @@ myrange3 = [min(t2), max(t2), min(t3), max(t3)]
 # curvas de nivel
 bins = 100
 H,[x,y,z] = np.histogramdd((t1, t2, t3), bins=(bins, bins, bins), range=[[min(t1), max(t1)], [min(t2), max(t2)], [min(t3), max(t3)]]) 
-
 dx = abs(max(x)-min(x))
 dy = abs(max(y)-min(y))
 dz = abs(max(z)-min(z))
@@ -566,9 +571,7 @@ amin = np.argmin(chi_2)
 t1min = np.argmin(abs(t1[amin]-xn))
 t2min = np.argmin(abs(t2[amin]-yn))
 t3min = np.argmin(abs(t3[amin]-zn))
-
 hs = np.linspace(np.min(H), np.max(H), 2000)
-
 min99 = np.inf
 min95 = np.inf
 min68 = np.inf
@@ -592,9 +595,7 @@ for i in hs:
 print 'a99', a99
 print 'a95', a95
 print 'a68', a68
-
 levels = (h99, h95, h68)
-
 # om, ol
 plt.clf()
 plt.scatter(t1, t2, marker='.', color='black')
@@ -605,7 +606,6 @@ plt.xlabel('$\Omega_{m,0}$')
 plt.ylabel('$\Omega_{DE,0}$')
 plt.legend()
 plt.savefig('r_om_ol')
-
 # ol, w
 plt.clf()
 plt.scatter(t2, t3, marker='.', color='black')
@@ -615,7 +615,6 @@ plt.ylabel('$w$')
 plt.xlabel('$\Omega_{DE,0}$')
 plt.legend()
 plt.savefig('r_ol_w')
-
 # om, w
 plt.clf()
 plt.scatter(t1, t3, marker='.', color='black')
@@ -626,6 +625,3 @@ plt.ylabel('$w$')
 plt.legend()
 plt.savefig('r_om_w')
 """
-
-
-
