@@ -1,2 +1,2 @@
 # MCMC-methods
-Metropolis-Hastings and Hamilton.
+Metropolis-Hastings and Hamiltonian Monte Carlo.
