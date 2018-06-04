@@ -1,3 +1,5 @@
+import numpy as np
+
 def MH(modelo, datos, N, params, q0, cov_mod, cov_prop, des=0.24):
     """
     datos: X, F(X)
@@ -51,7 +53,7 @@ def MH(modelo, datos, N, params, q0, cov_mod, cov_prop, des=0.24):
         # calcula nueva dist. post.
         pos1 = likelihood(mod1, Y, cov_mod) + prior(T1)
         # decision de aceptacion
-        A = acepta(T0, pos0, T1, pos1, mod1, mod1)
+        A = acepta_mh(T0, pos0, T1, pos1, mod1, mod1)
         # guarda la variable aceptada (puede ser la anterior o proposal)
         chain.append(A[0])
         post.append(A[1])
