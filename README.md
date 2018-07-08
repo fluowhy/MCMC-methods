@@ -1,6 +1,6 @@
 # MCMC-methods
 Metropolis Hastings and Hamiltonian Monte Carlo.
 
-mcmc_hmc.ipynb for HMC and MH.
+#### mcmc_hmc.ipynb for HMC and MH.
 
-l2hmc.ipynb for l2hmc.
+#### l2hmc.ipynb for l2hmc.
